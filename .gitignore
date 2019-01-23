@@ -1,0 +1,13 @@
+__pycache__
+*/__pycache__
+.ipynb_checkpoints
+*.h5
+*.hdf5
+*.json
+*.pb
+*.pbtxt
+*.yml
+*.ckpt
+.idea
+me.md
+data
