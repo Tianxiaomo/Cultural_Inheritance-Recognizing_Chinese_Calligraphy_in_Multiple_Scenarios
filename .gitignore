@@ -11,3 +11,4 @@ __pycache__
 .idea
 me.md
 data
+gen_data

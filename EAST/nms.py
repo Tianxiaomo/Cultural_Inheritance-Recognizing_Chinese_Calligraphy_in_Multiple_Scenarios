@@ -58,7 +58,7 @@ def nms(predict, activation_pixels, threshold=cfg.side_vertex_pixel_threshold):
             if should_merge(region_list[k], i, j):
                 region_list[k].add((i, j))
                 merge = True
-                # Fixme 重叠文本区域处理，存在和多个区域邻接的pixels，先都merge试试
+                # 重叠文本区域处理，存在和多个区域邻接的pixels，先都merge试试
                 # break
         if not merge:
             region_list.append({(i, j)})
