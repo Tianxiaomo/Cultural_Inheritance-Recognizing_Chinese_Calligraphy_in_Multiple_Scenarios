@@ -11,7 +11,7 @@ displayInterval = 5
 experiment = './expr'
 crnn = ''
 beta1 =0.5
-lr = 0.0001
+lr = 0.001
 niter = 300
 
 # Model
@@ -20,11 +20,12 @@ imgW = 480                                      #图片宽
 imgH = 48                                       #图片高
 batchSize = 64                                  #batchsize
 workers = 24                                    #数据加载进程数
-cuda = None                                     #GPU
+cuda = True                                     #GPU
 dic_path = 'char_gb2312.txt'                    #字符字典路径
 nc = 3                                          #图片channel
 nclass = strLabelConverter(dic_path).lexicon_len        # 字符字典长度
-
+checkpoints = 'checkpoints/'
+loadCheckpoint = None
 
 # Train
 epochs = 100

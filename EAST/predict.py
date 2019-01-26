@@ -157,12 +157,17 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     # img_path = args.path
-    img_path = '/home/huguanghao2/Data/ICDAR2015/Challenge4/images_ICDAR2015T512/test_img_2.jpg'
+    img_path = 'test/img_calligraphy_88334_bg.jpg'
     # threshold = float(args.threshold)
     threshold = 0.7
     print(img_path, threshold)
 
     east = East()
     east_detect = east.east_network()
-    east_detect.load_weights("checkpoints/weights_ICDAR2015T640.003-0.672.h5")
-    predict(east_detect, img_path,0.7)
+    east_detect.load_weights("checkpoints/single_gpu.h5")
+
+
+    import os
+    imgs = os.listdir('DF_zh')
+    for i in imgs:
+        predict(east_detect,'DF_zh/'+i,0.7)

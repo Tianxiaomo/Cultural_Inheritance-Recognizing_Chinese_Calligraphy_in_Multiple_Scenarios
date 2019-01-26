@@ -74,7 +74,7 @@ class genDataset(Dataset):
 
         text_color = '#000000'
 
-        orientation = 0
+        orientation = 1
         space_width = 1
 
         bg = random.sample(bgs,1)[0]

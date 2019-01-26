@@ -7,15 +7,17 @@ import torch.optim as optim
 import torch.utils.data
 from torch.autograd import Variable
 import numpy as np
-from torch_baidu_ctc import ctc_loss, CTCLoss
+from torch_baidu_ctc import CTCLoss
 
 from torchnet import meter as tnt
-
 
 from CRNN import utils, cfg, dataset
 import CRNN.crnn as crnn
 
 from utils import ShowProcess
+import os
+
+os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 
 # custom weights initialization called on crnn
 def weights_init(m):
@@ -25,6 +27,7 @@ def weights_init(m):
     elif classname.find('BatchNorm') != -1:
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
+
 
 def trainBatch(model, criterion, optimizer, train_dataloader):
     data, label = train_dataloader
@@ -38,7 +41,15 @@ def trainBatch(model, criterion, optimizer, train_dataloader):
     model.zero_grad()
     cost.backward()
     optimizer.step()
-    return cost.cpu()
+
+    acc = 0
+    preds = preds.argmax(2).cpu()
+    z = torch.tensor(0)
+    for i in range(preds.shape[1]):
+        t = [preds[j, i] for j in range(preds.shape[0]) if preds[j, i] != z and preds[j - 1, i] != preds[j, i]]
+        if len(t) == l[i]:
+            if list(torch.stack(t,0).numpy()) == list(converter.encode(label[i])[0].numpy()):acc+=1
+    return cost.cpu(),acc
 
 
 def valBatch(model, criterion,val_data):
@@ -50,35 +61,55 @@ def valBatch(model, criterion,val_data):
     preds = model(data)
     preds_size = Variable(torch.IntTensor([preds.size(0)] * batch_size))
     cost = criterion(preds, t, preds_size, l) / batch_size
-    return cost.cpu()
+
+    acc = 0
+    preds = preds.argmax(2).cpu()
+    z = torch.tensor(0)
+    for i in range(preds.shape[1]):
+        t = [preds[j, i] for j in range(preds.shape[0]) if preds[j, i] != z and preds[j - 1, i] != preds[j, i]]
+        if len(t) == l[i]:
+            if list(torch.stack(t, 0).numpy()) == list(converter.encode(label[i])[0].numpy()): acc += 1
+    return cost.cpu(),acc
 
 
 def train(model,criterion,opt,epochs,steps_per_epoch,validation_steps,train_dataloader,val_dataloader):
     ShowProcess.set(steps_per_epoch,epochs)
     loss_meter = tnt.AverageValueMeter()
+    acc_meter = tnt.AverageValueMeter()
+
     train_iter = iter(train_dataloader)
     val_iter   = iter(val_dataloader)
     for epoch in range(epochs):
         loss_meter.reset()
-
+        acc_meter.reset()
         # train
         for step in range(steps_per_epoch):
             data = train_iter.next()
             for p in model.parameters():
                 p.requires_grad = True
             model.train()
-            loss = trainBatch(model,criterion,opt,data)
+            loss,acc = trainBatch(model,criterion,opt,data)
             loss_meter.add(loss.data)
-            ShowProcess.show_process(epoch=epoch,step=step+1,loss=loss_meter.value()[0].cpu())
+            acc_meter.add(acc)
+
+            ShowProcess.show_process(epoch=epoch,step=step+1,loss_train=loss_meter.value()[0].cpu(),acc_train=acc_meter.value()[0])
         # val
         val_loss = 0
+        val_acc = 0
         for step in range(validation_steps):
             for p in model.parameters():
                 p.requires_grad = False
             model.eval()
             val_data = val_iter.next()
-            val_loss += valBatch(model, criterion,val_data)
-        print('val_loss:%f ' % val_loss)
+            ret = valBatch(model, criterion,val_data)
+            val_loss += ret[0]
+            val_acc += ret[1]
+        val_loss = val_loss / validation_steps
+        val_acc = val_acc/validation_steps
+        print('val_loss:%f ,val_acc:%f' % (val_loss,val_acc))
+        # save
+        torch.save(model.state_dict(),'{0}/crnn_{1}_{2}_{3}.pth'.format(cfg.checkpoints, epoch,val_loss,val_acc))
+
 
 if __name__ == '__main__':
 
@@ -117,13 +148,12 @@ if __name__ == '__main__':
         crnn.cuda()
         criterion = criterion.cuda()
 
-    # 4：恢复保存模型
     crnn.apply(weights_init)
-    if cfg.crnn != '':
-        print('loading pretrained model from %s' % cfg.crnn)
-        crnn.load_state_dict(torch.load(cfg.crnn))
+    if cfg.loadCheckpoint != None:
+        print('loading pretrained model from %s' % cfg.loadCheckpoint)
+        crnn.load_state_dict(torch.load(cfg.loadCheckpoint))
 
-    # 5：优化方式
+    # 4：优化方式
     if cfg.adam:
         optimizer = optim.Adam(crnn.parameters(), lr=cfg.lr,betas=(cfg.beta1, 0.999))
     elif cfg.adadelta:
@@ -131,7 +161,7 @@ if __name__ == '__main__':
     else:
         optimizer = optim.RMSprop(crnn.parameters(), lr=cfg.lr)
 
-    # 6：train
+    # 5：train
     train(crnn,criterion=criterion,opt = optimizer,
           epochs=cfg.epochs,steps_per_epoch=cfg.steps_per_epoch,
           validation_steps=cfg.validation_steps,

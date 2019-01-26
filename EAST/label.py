@@ -2,7 +2,7 @@ import numpy as np
 import os
 from PIL import Image, ImageDraw
 from tqdm import tqdm
-import cfg
+from EAST import cfg
 
 
 def point_inside_of_quad(px, py, quad_xy_list, p_min, p_max):
@@ -98,10 +98,10 @@ def shrink_edge(xy_list, new_xy_list, edge, r, theta, ratio=cfg.shrink_ratio):
 
 def process_label(data_dir=cfg.data_dir):
     print(cfg.train_task_id)
-    with open(os.path.join(data_dir, cfg.val_fname), 'r') as f_val:
-        f_list = f_val.readlines()
+    # with open(os.path.join(data_dir, cfg.train_fname), 'r') as f_val:
+    #     f_list = f_val.readlines()
     with open(os.path.join(data_dir, cfg.train_fname), 'r') as f_train:
-        f_list.extend(f_train.readlines())
+        f_list =f_train.readlines()
     for line in tqdm(f_list):
         line_cols = str(line).strip().split(',')
         img_name, width, height = \
@@ -172,4 +172,101 @@ def process_label(data_dir=cfg.data_dir):
 
 
 if __name__ == '__main__':
-    process_label()
+    # process_label()
+    import multiprocessing as mlp
+    from multiprocessing import Pool
+
+    with open(os.path.join(cfg.data_dir, cfg.train_fname), 'r') as f_train:
+        f_list = f_train.readlines()
+    # 任务数量
+    num = len(f_list)
+    data_dir = cfg.data_dir
+    # 子任务
+    def task(f_list,a, b):
+        for line in tqdm(f_list[a:b]):
+            line_cols = str(line).strip().split(',')
+            img_name, width, height = \
+                line_cols[0].strip(), int(line_cols[1].strip()), \
+                int(line_cols[2].strip())
+            gt = np.zeros((height // cfg.pixel_size, width // cfg.pixel_size, 7))
+            train_label_dir = os.path.join(data_dir, cfg.train_label_dir_name)
+            xy_list_array = np.load(os.path.join(train_label_dir,
+                                                 img_name[:-4] + '.npy'))
+            train_image_dir = os.path.join(data_dir, cfg.train_image_dir_name)
+            with Image.open(os.path.join(train_image_dir, img_name)) as im:
+                draw = ImageDraw.Draw(im)
+                for xy_list in xy_list_array:
+                    _, shrink_xy_list, _ = shrink(xy_list, cfg.shrink_ratio)
+                    shrink_1, _, long_edge = shrink(xy_list, cfg.shrink_side_ratio)
+                    p_min = np.amin(shrink_xy_list, axis=0)
+                    p_max = np.amax(shrink_xy_list, axis=0)
+                    # floor of the float
+                    ji_min = (p_min / cfg.pixel_size - 0.5).astype(int) - 1
+                    # +1 for ceil of the float and +1 for include the end
+                    ji_max = (p_max / cfg.pixel_size - 0.5).astype(int) + 3
+                    imin = np.maximum(0, ji_min[1])
+                    imax = np.minimum(height // cfg.pixel_size, ji_max[1])
+                    jmin = np.maximum(0, ji_min[0])
+                    jmax = np.minimum(width // cfg.pixel_size, ji_max[0])
+                    for i in range(imin, imax):
+                        for j in range(jmin, jmax):
+                            px = (j + 0.5) * cfg.pixel_size
+                            py = (i + 0.5) * cfg.pixel_size
+                            if point_inside_of_quad(px, py,
+                                                    shrink_xy_list, p_min, p_max):
+                                gt[i, j, 0] = 1
+                                line_width, line_color = 1, 'red'
+                                ith = point_inside_of_nth_quad(px, py,
+                                                               xy_list,
+                                                               shrink_1,
+                                                               long_edge)
+                                vs = [[[3, 0], [1, 2]], [[0, 1], [2, 3]]]
+                                if ith in range(2):
+                                    gt[i, j, 1] = 1
+                                    if ith == 0:
+                                        line_width, line_color = 2, 'yellow'
+                                    else:
+                                        line_width, line_color = 2, 'green'
+                                    gt[i, j, 2:3] = ith
+                                    gt[i, j, 3:5] = \
+                                        xy_list[vs[long_edge][ith][0]] - [px, py]
+                                    gt[i, j, 5:] = \
+                                        xy_list[vs[long_edge][ith][1]] - [px, py]
+                                draw.line([(px - 0.5 * cfg.pixel_size,
+                                            py - 0.5 * cfg.pixel_size),
+                                           (px + 0.5 * cfg.pixel_size,
+                                            py - 0.5 * cfg.pixel_size),
+                                           (px + 0.5 * cfg.pixel_size,
+                                            py + 0.5 * cfg.pixel_size),
+                                           (px - 0.5 * cfg.pixel_size,
+                                            py + 0.5 * cfg.pixel_size),
+                                           (px - 0.5 * cfg.pixel_size,
+                                            py - 0.5 * cfg.pixel_size)],
+                                          width=line_width, fill=line_color)
+                act_image_dir = os.path.join(cfg.data_dir,
+                                             cfg.show_act_image_dir_name)
+                if cfg.draw_act_quad:
+                    im.save(os.path.join(act_image_dir, img_name))
+            train_label_dir = os.path.join(data_dir, cfg.train_label_dir_name)
+            np.save(os.path.join(train_label_dir,
+                                 img_name[:-4] + '_gt.npy'), gt)
+        return 0
+
+    # 线程池
+    p = Pool()
+    n_cpu = mlp.cpu_count()
+    split = num // n_cpu
+    res =  []
+    for i in range(n_cpu):
+        a = split * i
+        if i == n_cpu - 1:
+            b = num
+        else:
+            b = split * (i + 1)
+        res.append(p.apply_async(task, args=(f_list,a, b)))
+
+    for r in res:
+        print(r.get())
+
+    p.close()
+    p.join()

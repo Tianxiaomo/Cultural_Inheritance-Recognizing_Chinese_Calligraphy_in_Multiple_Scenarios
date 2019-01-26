@@ -1,3 +1,5 @@
+# import pudb; pu.db
+
 import os
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.optimizers import Adam,Nadam
@@ -8,6 +10,7 @@ from losses import quad_loss
 from data_generator import gen
 import tensorflow as tf
 import keras.backend as K
+from keras.utils import multi_gpu_model
 
 # num_cores = 1
 # GPU = 2
@@ -63,13 +66,16 @@ def iou_loss_core(y_true, y_pred, smooth=1):
 east = East()
 east_network = east.east_network()
 east_network.summary()
-east_network.compile(loss=quad_loss, optimizer=Nadam(lr=cfg.lr),
+
+east_network_m = multi_gpu_model(east_network, gpus=4)
+
+east_network_m.compile(loss=quad_loss, optimizer=Nadam(lr=cfg.lr),
                                                     # clipvalue=cfg.clipvalue,
                                                     # decay=cfg.decay),
                      metrics=[iou_loss_core])
 
-if cfg.load_weights and os.path.exists(cfg.load_weight):
-    east_network.load_weights('_downmodel/east_model_weights_3T736.h5')
+if cfg.load_weight and os.path.exists(cfg.load_weight):
+    east_network_m.load_weights(cfg.load_weight)
 
 east_network.fit_generator(generator=gen(),
                            steps_per_epoch=cfg.steps_per_epoch,
@@ -78,8 +84,7 @@ east_network.fit_generator(generator=gen(),
                            validation_steps=cfg.validation_steps,
                            verbose=1,
                            initial_epoch=cfg.initial_epoch,
-                           callbacks=[
-                               EarlyStopping(patience=cfg.patience, verbose=1),
+                           callbacks=[EarlyStopping(patience=cfg.patience, verbose=1),
                                ModelCheckpoint(filepath=cfg.checkpoint_path,
                                                save_best_only=True,
                                                save_weights_only=True,
