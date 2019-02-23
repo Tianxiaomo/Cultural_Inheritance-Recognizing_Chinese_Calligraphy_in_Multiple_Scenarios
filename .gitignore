@@ -16,3 +16,5 @@ gen_data
 EAST/*.jpg
 EAST/DF_zh
 EAST/row
+*.pth
+data_generator_my

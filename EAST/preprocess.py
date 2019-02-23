@@ -336,14 +336,14 @@ def preprocess():
     train_label_list = os.listdir(train_label_dir)
     print('found %d train labels.' % len(train_label_list))
 
-    random.shuffle(train_val_set)
-    val_count = int(cfg.validation_split_ratio * len(train_val_set))
-
-    with open(os.path.join(data_dir, cfg.val_fname), 'w') as f_val:
-        f_val.writelines(test_set)
-
-    with open(os.path.join(data_dir, cfg.train_fname), 'w') as f_train:
-        f_train.writelines(train_val_set)
+    # random.shuffle(train_val_set)
+    # val_count = int(cfg.validation_split_ratio * len(train_val_set))
+    #
+    # with open(os.path.join(data_dir, cfg.val_fname), 'w') as f_val:
+    #     f_val.writelines(test_set)
+    #
+    # with open(os.path.join(data_dir, cfg.train_fname), 'w') as f_train:
+    #     f_train.writelines(train_val_set)
 
 if __name__ == '__main__':
     preprocess()

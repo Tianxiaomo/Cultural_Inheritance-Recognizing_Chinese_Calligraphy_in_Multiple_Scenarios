@@ -29,8 +29,8 @@ else:
 steps_per_epoch = 50000 // batch_size
 validation_steps = 10000 // batch_size
 
+# data_dir = '/home/huguanghao2/Data/DF_zh/train_dataset_char/'
 data_dir = '/home/huguanghao2/Data/DF_zh/train_dataset_char/'
-
 #=====================================================================#
 
 origin_image_dir_name = 'train_Image/'
