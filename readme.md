@@ -10,25 +10,48 @@
 
 ## CRNN
 
-cnn+blstm+crc
-
-使用pytorch，需要安装 ctc组建，有[torch-baidu-ctc](https://pypi.org/project/torch-baidu-ctc/)或[wrap-ctc](https://github.com/SeanNaren/warp-ctc)
-
-### torch-baidu-ctc
-
-可以直接使用pip安装
+pytorch模型在训练的过程中发现不收敛，且无法本地调试，遂修改为keras版本模型，但由于keras后端使用tensorflow，输入的图片的大小必须一致，不可以动态调整，所以采用了一个比较折中的办法，把图片设置的较大，使用
 ```angular2html
-pip install torch-baidu-ctc
+    img = np.pad(img, ((0, 0), (l, r), (0, 0)), 'constant',constant_values=(0,0))
 ```
-但是windows不可以用，作者说的pytorch的原因。
 
-### wrap-ctc
+train了两天的效果
 
-```angular2html
-git clone https://github.com/SeanNaren/warp-ctc.git
-cd warp-ctc
-mkdir build; cd build
-cmake ..
-make
-```
-也是不支持win，在issue看到有大佬改了[win版本](https://github.com/amberblade/warp-ctc/)的，试了也不行，大佬可以尝试一下
+![image](CRNN/img/0.jpg)
+['，', '相', '从', '孝', '王', '台', '。', '细', '雨']
+
+![image](CRNN/img/1.jpg)
+['、', '低']
+
+![image](CRNN/img/2.jpg)
+['变']
+
+![image](CRNN/img/5.jpg)
+['告', '，', '灌', '预', '彦', '兼', '，', '票', '脚', '冷']
+
+![image](CRNN/img/14.jpg)
+['明', '代', '天', '险', '飞', '藤']
+
+![image](CRNN/img/15.jpg)
+['岛', '降', '祥', '时', '，', '证', '陆', '地', '种']
+
+![image](CRNN/img/16.jpg)
+['令', '贾', '取']
+
+![image](CRNN/img/17.jpg)
+['武']
+
+![image](CRNN/img/18.jpg)
+['京', '成']
+
+![image](CRNN/img/19.jpg)
+['世', '间', '李', '论', '。', '准', '星']
+
+![image](CRNN/img/20.jpg)
+['承', '公', '＊', '烟', '、', '自', '属', '、', '、']
+
+![image](CRNN/img/21.jpg)
+['西', '“', '添', '瑞', '鲜', '酸']
+
+![image](CRNN/img/4.jpg)
+['性', '显', '英', '豪', '，', '挖', '塔', '的', '搬']
