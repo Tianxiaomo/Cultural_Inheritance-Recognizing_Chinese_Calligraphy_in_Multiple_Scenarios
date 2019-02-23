@@ -17,7 +17,7 @@ import CRNN.crnn as crnn
 from utils import ShowProcess
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 # custom weights initialization called on crnn
 def weights_init(m):
@@ -92,7 +92,7 @@ def train(model,criterion,opt,epochs,steps_per_epoch,validation_steps,train_data
             loss_meter.add(loss.data)
             acc_meter.add(acc)
 
-            ShowProcess.show_process(epoch=epoch,step=step+1,loss_train=loss_meter.value()[0].cpu(),acc_train=acc_meter.value()[0])
+            ShowProcess.show_process(epoch=epoch,step=step+1,loss_train=loss_meter.value()[0].cpu(),acc_train=acc_meter.value())
         # val
         val_loss = 0
         val_acc = 0
@@ -121,8 +121,8 @@ if __name__ == '__main__':
     cudnn.benchmark = True
 
     # 1：数据加载
-    train_dataset = dataset.genDataset()
-    val_dataset = dataset.genDataset()
+    train_dataset = dataset.genDataset1()
+    val_dataset = dataset.genDataset1()
     assert train_dataset
     if not cfg.random_sample:
         sampler = dataset.randomSequentialSampler(train_dataset, cfg.batchSize)

@@ -7,42 +7,44 @@ sys.path.append(os.getcwd())
 import torch
 from torch.autograd import Variable
 from PIL import Image
-import pytorch_model.models.crnn as crnn
-from pytorch_model import alphabets, utils, dataset
+import CRNN.crnn as crnn
+# from pytorch_model import alphabets, utils, dataset
+from CRNN import cfg
+from CRNN import utils,dataset
 
-str1 = alphabets.alphabet
+# str1 = alphabets.alphabet
 
 import torchvision
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--images_path', type=str, default='../data_generator/data_set/val_set/8.png', help='the path to your images')
+parser.add_argument('--images_path', type=str, default='1.jpg', help='the path to your images')
 opt = parser.parse_args()
 
 
 # crnn params
 # 3p6m_third_ac97p8.pth
-crnn_model_path = 'checkout/mixed_second_finetune_acc97p7.pth'
-alphabet = str1
-nclass = len(alphabet)+1
+crnn_model_path = 'crnn_19_0.5709116458892822_56.58.pth'
+# alphabet = str1
+# nclass = len(alphabet)+1
 
 
 # crnn文本信息识别
 def crnn_recognition(cropped_image, model):
 
-    converter = utils.strLabelConverter(alphabet)
-  
-    image = cropped_image.convert('L')
+    # converter = utils.strLabelConverter(alphabet)
+    converter = utils.strLabelConverter(cfg.dic_path)
 
+    image = cropped_image.convert('RGB')
+    # image = cropped_image
     ## 
-    w = int(image.size[0] / (280 * 1.0 / 160))
-    transformer = dataset.resizeNormalize((w, 32))
+    w = int(image.size[0] / (280 * 1.0 / 480))
+    transformer = dataset.resizeNormalize((w, 48))
     image = transformer(image)
     if torch.cuda.is_available():
         image = image.cuda()
     image = image.view(1, *image.size())
     image = Variable(image)
-
     model.eval()
     preds = model(image)
 
@@ -56,7 +58,8 @@ def crnn_recognition(cropped_image, model):
 
 if __name__ == '__main__':
 	# crnn network
-    model = crnn.CRNN(32, 1, nclass, 256)
+    model = crnn.CRNN(cfg.imgH, cfg.nc,cfg.nclass, cfg.nh)
+
     if torch.cuda.is_available():
         model = model.cuda()
     print('loading pretrained model from {0}'.format(crnn_model_path))

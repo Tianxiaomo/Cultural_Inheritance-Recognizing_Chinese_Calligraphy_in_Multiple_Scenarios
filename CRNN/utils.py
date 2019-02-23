@@ -32,30 +32,10 @@ class strLabelConverter(object):
         text = result
         return (torch.IntTensor(text), torch.IntTensor(length))
 
-    def decode(self, t, length, raw=False):
-        if length.numel() == 1:
-            length = length[0]
-            assert t.numel() == length, "text with length: {} does not match declared length: {}".format(t.numel(), length)
-            if raw:
-                return ''.join([self.alphabet[i - 1] for i in t])
-            else:
-                char_list = []
-                for i in range(length):
-                    if t[i] != 0 and (not (i > 0 and t[i - 1] == t[i])):
-                        char_list.append(self.alphabet[t[i] - 1])
-                return ''.join(char_list)
-        else:
-            # batch mode
-            assert t.numel() == length.sum(), "texts with length: {} does not match declared length: {}".format(t.numel(), length.sum())
-            texts = []
-            index = 0
-            for i in range(length.numel()):
-                l = length[i]
-                texts.append(
-                    self.decode(
-                        t[index:index + l], torch.IntTensor([l]), raw=raw))
-                index += l
-            return texts
+    def decode(self, a, length, raw=False):
+        ctc_end = self.lexicon_len - 1
+        text = [self.decode_dict.get(int(a[i])) for i in range(len(a)) if a[i] != 0 and a[i] != ctc_end and a[i] != a[i - 1]]
+        return text
 
 
 class averager(object):

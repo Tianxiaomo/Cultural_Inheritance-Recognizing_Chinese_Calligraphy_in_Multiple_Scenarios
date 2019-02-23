@@ -14,7 +14,9 @@ from PIL import Image
 import numpy as np
 from data_generator import FakeTextDataGenerator
 import os
-
+import cfg
+import time
+from data_generator_my.generator import gen_data
 
 with open('../gen_data/poem_pure.txt','r',encoding='utf-8') as text:
     poem = [i.split('\n')[0] for i in text.readlines()]
@@ -25,11 +27,6 @@ with open('../gen_data/idiom_pure.txt','r',encoding='utf-8') as text:
     idiom_len = len(idiom)-1
 
 fonts_list = os.listdir('../gen_data/TextRecognitionDataGenerator/fonts')
-
-pics = os.listdir('../gen_data/TextRecognitionDataGenerator/img')
-bgs = []
-for i in pics:
-    bgs.append(Image.open('../gen_data/TextRecognitionDataGenerator/img/'+i))
 
 
 # 从文字库中随机选择n个字符
@@ -46,6 +43,8 @@ class genDataset(Dataset):
         self.nSamples = 1000000
         self.transform = transforms.Compose([transforms.ToTensor()])
         self.target_transform = target_transform
+
+        self.bgs_list = os.listdir('../gen_data/TextRecognitionDataGenerator/' + cfg.img)
 
     def __len__(self):
         return self.nSamples
@@ -74,13 +73,16 @@ class genDataset(Dataset):
 
         text_color = '#000000'
 
-        orientation = 1
+        orientation = 0
         space_width = 1
 
-        bg = random.sample(bgs,1)[0]
+        bg = random.sample(self.bgs_list,1)[0]
+        bg = Image.open('../gen_data/TextRecognitionDataGenerator/' + cfg.img + '/' + bg)
 
         img = FakeTextDataGenerator.generate(text,font,size,skewing_angle,background_type,
                             distorsion_type,distorsion_orientation,width,alignment,text_color,orientation,space_width,bg,blur)
+
+        img.save('debug/'+str(time.time())+'.jpg')
 
         # img = self.transform(img)
 
@@ -88,53 +90,6 @@ class genDataset(Dataset):
 
         if self.target_transform is not None:
             label = self.target_transform(label)
-
-        return (img, label)
-
-
-class lmdbDataset(Dataset):
-
-    def __init__(self, root=None, transform=None, target_transform=None):
-        if not self.env:
-            print('cannot creat lmdb from %s' % (root))
-            sys.exit(0)
-
-        with self.env.begin(write=False) as txn:
-
-            str = 'num-samples'
-            nSamples = int(txn.get(str.encode()))
-            self.nSamples = nSamples
-
-        self.transform = transform
-        self.target_transform = target_transform
-
-    def __len__(self):
-        return self.nSamples
-
-    def __getitem__(self, index):
-        assert index <= len(self), 'index range error'
-        index += 1
-        with self.env.begin(write=False) as txn:
-            img_key = 'image-%09d' % index
-            imgbuf = txn.get(img_key.encode())
-
-            buf = six.BytesIO()
-            buf.write(imgbuf)
-            buf.seek(0)
-            try:
-                img = Image.open(buf).convert('L')
-            except IOError:
-                print('Corrupted image for %d' % index)
-                return self[index + 1]
-
-            if self.transform is not None:
-                img = self.transform(img)
-
-            label_key = 'label-%09d' % index
-            label = txn.get(label_key.encode())
-
-            if self.target_transform is not None:
-                label = self.target_transform(label)
 
         return (img, label)
 
@@ -151,6 +106,7 @@ class resizeNormalize(object):
         img = self.toTensor(img)
         img.sub_(0.5).div_(0.5)
         return img
+
 
 
 class randomSequentialSampler(sampler.Sampler):
@@ -206,3 +162,30 @@ class alignCollate(object):
         images = [transform(image) for image in images]
         images = torch.cat([t.unsqueeze(0) for t in images], 0)
         return images, labels
+
+
+class genDataset1(Dataset):
+    def __init__(self,train=True,target_transform=None,img_w=cfg.imgW,img_h=cfg.imgH,img_c=cfg.imgC):
+        self.nSamples = 1000000
+        self.transform = transforms.Compose([transforms.ToTensor()])
+        self.target_transform = target_transform
+        self.img_w = img_w
+        self.img_h = img_h
+        self.img_c = img_c
+
+        with open(cfg.dic_path, 'r', encoding='utf-8') as file:
+            self.char_dict = {num: char.strip() for num, char in enumerate(file.readlines())}
+            self.num_dict = {char: num for num, char in self.char_dict.items()}
+            self.lexicon_len = len(self.char_dict)
+
+    def __len__(self):
+        return self.nSamples
+
+    def __getitem__(self, index):
+        img, label = gen_data(self.img_w, self.img_h)
+
+        if self.target_transform is not None:
+            label = self.target_transform(label)
+
+        return img,label
+

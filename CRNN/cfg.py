@@ -15,19 +15,24 @@ lr = 0.001
 niter = 300
 
 # Model
-nh = 256                                        #rnn 隐藏单元个数
-imgW = 480                                      #图片宽
-imgH = 48                                       #图片高
-batchSize = 64                                  #batchsize
-workers = 24                                    #数据加载进程数
-cuda = True                                     #GPU
-dic_path = 'char_gb2312.txt'                    #字符字典路径
-nc = 3                                          #图片channel
-nclass = strLabelConverter(dic_path).lexicon_len        # 字符字典长度
-checkpoints = 'checkpoints/'
+nh          = 256                                      #rnn 隐藏单元个数
+imgW        = 480                                      #图片宽
+imgH        = 48                                       #图片高
+imgC        = 3
+batchSize   = 128                                       #batchsize
+workers     = 1                                       #数据加载进程数
+cuda        = False                                     #GPU
+dic_path    = 'char_gb2312.txt'                        #字符字典路径
+nc          = 3                                        #图片channel
+nclass      = strLabelConverter(dic_path).lexicon_len  # 字符字典长度
+checkpoints = 'checkpoints'
 loadCheckpoint = None
 
 # Train
-epochs = 100
-steps_per_epoch = 1000
-validation_steps = 100
+epochs = 1000
+steps_per_epoch = 500
+validation_steps = 50
+
+# crnn
+
+img = 'img1'
